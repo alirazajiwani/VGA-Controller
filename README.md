@@ -25,9 +25,15 @@ Memory read access
 Final RGB output and sync signals (vga_red, vga_green, vga_blue, vga_hsync, vga_vsync, video_enable)
 
 ## Simulation
-Simulator: ModelSim
 Testbench: Provided to verify functionality and visualize pixel output over time.
 Simulation shows VGA timing and correct pixel regeneration based on stored JPG image data.
+
+#### Source Image:
+![SourceImage](https://github.com/user-attachments/assets/01b7f0ce-cc65-4a03-836a-53499b0f35a2)
+
+#### Reconstruced Image:
+![ReconstructedImage](https://github.com/user-attachments/assets/f5381ac8-3473-4dd6-970a-810f506efda4)
+
 
 ## Image Pipeline
 A JPG image is converted into hex using a Python script.
