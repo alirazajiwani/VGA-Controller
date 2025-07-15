@@ -40,3 +40,6 @@ A JPG image is converted into hex using a Python script.
 The hex values are stored in memory and accessed pixel-by-pixel during simulation.
 No artificial patterns—just pure reconstruction of the original image from memory.
 
+#### Workflow
+<img width="942" height="442" alt="image" src="https://github.com/user-attachments/assets/468646c7-cbf5-49b9-8802-053682e50902" />
+
