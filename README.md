@@ -9,6 +9,9 @@ Handles all timing phases: front porch, sync pulse, back porch, and visible area
 Maintains pixel counters (h_count, v_count) for coordinate tracking.
 Outputs a signal indicating the active display region.
 
+<img width="940" height="160" alt="Timing_signal(1)" src="https://github.com/user-attachments/assets/5df862e4-42de-4e96-a1e0-586e1d09b475" />
+
+
 ### 2. mem_interfacing
 Responsible for managing a simulated frame buffer (2D memory array) that stores pixel RGB data.
 Input image: a JPG file is converted into hex values using a Python script.
