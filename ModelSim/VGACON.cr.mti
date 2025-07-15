@@ -1,0 +1,36 @@
+E:/Course/Projects/VGAcontroller/Modelsim/top_module.sv {1 {vlog -work work -sv -stats=none E:/Course/Projects/VGAcontroller/Modelsim/top_module.sv
+Model Technology ModelSim - Intel FPGA Edition vlog 10.5b Compiler 2016.10 Oct  5 2016
+-- Compiling module top_module
+
+Top level modules:
+	top_module
+
+} {} {}} E:/Course/Projects/VGAcontroller/Modelsim/tb_top_module.sv {1 {vlog -work work -sv -stats=none E:/Course/Projects/VGAcontroller/Modelsim/tb_top_module.sv
+Model Technology ModelSim - Intel FPGA Edition vlog 10.5b Compiler 2016.10 Oct  5 2016
+-- Compiling module tb_top_module
+
+Top level modules:
+	tb_top_module
+
+} {} {}} E:/Course/Projects/VGAcontroller/Modelsim/vga_timing.sv {1 {vlog -work work -sv -stats=none E:/Course/Projects/VGAcontroller/Modelsim/vga_timing.sv
+Model Technology ModelSim - Intel FPGA Edition vlog 10.5b Compiler 2016.10 Oct  5 2016
+-- Compiling module vga_timing
+
+Top level modules:
+	vga_timing
+
+} {} {}} E:/Course/Projects/VGAcontroller/Modelsim/tb_vga_timing.sv {1 {vlog -work work -sv -stats=none E:/Course/Projects/VGAcontroller/Modelsim/tb_vga_timing.sv
+Model Technology ModelSim - Intel FPGA Edition vlog 10.5b Compiler 2016.10 Oct  5 2016
+-- Compiling module tb_vga_timing
+
+Top level modules:
+	tb_vga_timing
+
+} {} {}} E:/Course/Projects/VGAcontroller/Modelsim/mem_interface.sv {1 {vlog -work work -sv -stats=none E:/Course/Projects/VGAcontroller/Modelsim/mem_interface.sv
+Model Technology ModelSim - Intel FPGA Edition vlog 10.5b Compiler 2016.10 Oct  5 2016
+-- Compiling module mem_interfacing
+
+Top level modules:
+	mem_interfacing
+
+} {} {}}

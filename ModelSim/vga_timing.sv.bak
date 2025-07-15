@@ -1,0 +1,258 @@
+module vga_timing (
+    input  logic clk,
+    input  logic reset,
+    output logic hsync,
+    output logic vsync,
+    output logic [10:0] pixel_x,
+    output logic [9:0]  pixel_y,
+    output logic active_video
+);
+
+    // VGA 1024x768 @ 60Hz timing parameters
+    parameter H_A  = 1024;   // Horizontal active
+    parameter H_FP = 24;     // Horizontal front porch
+    parameter H_S  = 136;    // Horizontal sync
+    parameter H_BP = 160;    // Horizontal back porch
+    parameter H_TOTAL = H_A + H_FP + H_S + H_BP; // 1344
+
+    parameter V_A  = 768;    // Vertical active
+    parameter V_FP = 3;      // Vertical front porch
+    parameter V_S  = 6;      // Vertical sync
+    parameter V_BP = 29;     // Vertical back porch
+    parameter V_TOTAL = V_A + V_FP + V_S + V_BP; // 806
+
+    // Unified FSM states for both horizontal and vertical timing
+    typedef enum logic [3:0] {
+        // Vertical Back Porch states
+        V_BP_H_BP,    // Vertical back porch, horizontal back porch
+        V_BP_H_A,     // Vertical back porch, horizontal active
+        V_BP_H_FP,    // Vertical back porch, horizontal front porch
+        V_BP_H_S,     // Vertical back porch, horizontal sync
+        
+        // Vertical Active states
+        V_A_H_BP,     // Vertical active, horizontal back porch
+        V_A_H_A,      // Vertical active, horizontal active (visible area)
+        V_A_H_FP,     // Vertical active, horizontal front porch
+        V_A_H_S,      // Vertical active, horizontal sync
+        
+        // Vertical Front Porch states
+        V_FP_H_BP,    // Vertical front porch, horizontal back porch
+        V_FP_H_A,     // Vertical front porch, horizontal active
+        V_FP_H_FP,    // Vertical front porch, horizontal front porch
+        V_FP_H_S,     // Vertical front porch, horizontal sync
+        
+        // Vertical Sync states
+        V_S_H_BP,     // Vertical sync, horizontal back porch
+        V_S_H_A,      // Vertical sync, horizontal active
+        V_S_H_FP,     // Vertical sync, horizontal front porch
+        V_S_H_S       // Vertical sync, horizontal sync
+    } state_t;
+
+    state_t current_state;
+
+    // Counters
+    logic [10:0] h_count;    // Horizontal pixel counter within current period
+    logic [9:0]  v_count;    // Vertical line counter within current period
+    logic [9:0]  line_count; // Total line counter for pixel_y
+
+    // FSM with unified horizontal and vertical timing
+    always_ff @(posedge clk or posedge reset) begin
+        if (reset) begin
+            current_state <= V_BP_H_BP;
+            h_count <= 0;
+            v_count <= 0;
+            line_count <= 0;
+        end else begin
+            case (current_state)
+                // ============= VERTICAL BACK PORCH =============
+                V_BP_H_BP: begin
+                    if (h_count == H_BP - 1) begin
+                        h_count <= 0;
+                        current_state <= V_BP_H_A;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_BP_H_A: begin
+                    if (h_count == H_A - 1) begin
+                        h_count <= 0;
+                        current_state <= V_BP_H_FP;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_BP_H_FP: begin
+                    if (h_count == H_FP - 1) begin
+                        h_count <= 0;
+                        current_state <= V_BP_H_S;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_BP_H_S: begin
+                    if (h_count == H_S - 1) begin
+                        h_count <= 0;
+                        if (v_count == V_BP - 1) begin
+                            v_count <= 0;
+                            line_count <= 0;
+                            current_state <= V_A_H_BP;
+                        end else begin
+                            v_count <= v_count + 1;
+                            current_state <= V_BP_H_BP;
+                        end
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                // ============= VERTICAL ACTIVE =============
+                V_A_H_BP: begin
+                    if (h_count == H_BP - 1) begin
+                        h_count <= 0;
+                        current_state <= V_A_H_A;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_A_H_A: begin
+                    if (h_count == H_A - 1) begin
+                        h_count <= 0;
+                        current_state <= V_A_H_FP;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_A_H_FP: begin
+                    if (h_count == H_FP - 1) begin
+                        h_count <= 0;
+                        current_state <= V_A_H_S;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_A_H_S: begin
+                    if (h_count == H_S - 1) begin
+                        h_count <= 0;
+                        if (v_count == V_A - 1) begin
+                            v_count <= 0;
+                            current_state <= V_FP_H_BP;
+                        end else begin
+                            v_count <= v_count + 1;
+                            line_count <= line_count + 1;
+                            current_state <= V_A_H_BP;
+                        end
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                // ============= VERTICAL FRONT PORCH =============
+                V_FP_H_BP: begin
+                    if (h_count == H_BP - 1) begin
+                        h_count <= 0;
+                        current_state <= V_FP_H_A;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_FP_H_A: begin
+                    if (h_count == H_A - 1) begin
+                        h_count <= 0;
+                        current_state <= V_FP_H_FP;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_FP_H_FP: begin
+                    if (h_count == H_FP - 1) begin
+                        h_count <= 0;
+                        current_state <= V_FP_H_S;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_FP_H_S: begin
+                    if (h_count == H_S - 1) begin
+                        h_count <= 0;
+                        if (v_count == V_FP - 1) begin
+                            v_count <= 0;
+                            current_state <= V_S_H_BP;
+                        end else begin
+                            v_count <= v_count + 1;
+                            current_state <= V_FP_H_BP;
+                        end
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                // ============= VERTICAL SYNC =============
+                V_S_H_BP: begin
+                    if (h_count == H_BP - 1) begin
+                        h_count <= 0;
+                        current_state <= V_S_H_A;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_S_H_A: begin
+                    if (h_count == H_A - 1) begin
+                        h_count <= 0;
+                        current_state <= V_S_H_FP;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_S_H_FP: begin
+                    if (h_count == H_FP - 1) begin
+                        h_count <= 0;
+                        current_state <= V_S_H_S;
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                V_S_H_S: begin
+                    if (h_count == H_S - 1) begin
+                        h_count <= 0;
+                        if (v_count == V_S - 1) begin
+                            v_count <= 0;
+                            current_state <= V_BP_H_BP;
+                        end else begin
+                            v_count <= v_count + 1;
+                            current_state <= V_S_H_BP;
+                        end
+                    end else begin
+                        h_count <= h_count + 1;
+                    end
+                end
+
+                default: current_state <= V_BP_H_BP;
+            endcase
+        end
+    end
+
+    // Output signal generation based on current state
+    assign hsync = ~((current_state == V_BP_H_S) || (current_state == V_A_H_S) || 
+                     (current_state == V_FP_H_S) || (current_state == V_S_H_S));
+
+    assign vsync = ~((current_state == V_S_H_BP) || (current_state == V_S_H_A) || 
+                     (current_state == V_S_H_FP) || (current_state == V_S_H_S));
+
+    assign active_video = (current_state == V_A_H_A);
+
+    assign pixel_x = (current_state == V_A_H_A) ? h_count : 11'd0;
+    assign pixel_y = (current_state == V_A_H_A) ? line_count : 10'd0;
+
+endmodule
