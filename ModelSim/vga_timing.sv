@@ -1,10 +1,10 @@
 module vga_timing (
     input  logic clk,
-    input  logic reset,
+    input  logic reset_n,
     output logic hsync,
     output logic vsync,
-    output logic [10:0] pixel_x,
-    output logic [9:0]  pixel_y,
+    output logic [9:0] pixel_x,
+    output logic [8:0] pixel_y,
     output logic active_video
 );
 
@@ -22,120 +22,149 @@ module vga_timing (
     parameter V_TOTAL = V_A + V_FP + V_S + V_BP;
 
     // FSM states
-    typedef enum logic [2:0] {
-        Idle,
-        Vbp,
-        Hbp,
-        Ha,
-        Hfp,
-        Hs,
-        Vfp,
-        Vs
-    } state_t;
+    typedef enum logic [1:0] {
+        Hbp,    // Horizontal Back Porch
+        Ha,     // Horizontal Active
+        Hfp,    // Horizontal Front Porch
+        Hs      // Horizontal Sync
+    } h_state_t;
 
-    state_t CS;
+    typedef enum logic [1:0] {
+        Vbp,    // Vertical Back Porch
+        Va,     // Vertical Active (480 lines of horizontal cycles)
+        Vfp,    // Vertical Front Porch
+        Vs      // Vertical Sync
+    } v_state_t;
+
+    h_state_t h_state;
+    v_state_t v_state;
 
     // Counters
-    logic [10:0] h_count;
-    logic [9:0]  v_count;
-    logic [9:0]  v_line;  // Tracks visible line number
+    logic [9:0] h_count;
+    logic [9:0] v_count;
+    logic [9:0] pixel_x_reg;
+    logic [8:0] pixel_y_reg;
+    
+    logic end_of_line;  // Signal to indicate end of horizontal line
 
-    // FSM
-    always_ff @(posedge clk or posedge reset) begin
-        if (reset) begin
-            CS <= Idle;
-            h_count <= 0;
-            v_count <= 0;
-            v_line  <= 0;
+    // Horizontal FSM
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            h_state <= Hbp;
+            h_count <= 10'd0;
+            pixel_x_reg <= 10'd0;
         end else begin
-            case (CS)
-                Idle: begin
-                    CS <= Vbp;
-                    h_count <= 0;
-                    v_count <= 0;
-                    v_line  <= 0;
-                end
-
-                Vbp: begin
-                    if (v_count == V_BP - 1) begin
-                        v_count <= 0;
-                        CS <= Hbp;
-                    end else begin
-                        v_count <= v_count + 1;
-                    end
-                end
-
+            case (h_state)
                 Hbp: begin
                     if (h_count == H_BP - 1) begin
-                        h_count <= 0;
-                        CS <= Ha;
+                        h_count <= 10'd0;
+                        pixel_x_reg <= 10'd0;
+                        h_state <= Ha;
                     end else begin
-                        h_count <= h_count + 1;
+                        h_count <= h_count + 10'd1;
                     end
                 end
 
                 Ha: begin
+                    h_count <= h_count + 10'd1;
+                    pixel_x_reg <= pixel_x_reg + 10'd1;
                     if (h_count == H_A - 1) begin
-                        h_count <= 0;
-                        CS <= Hfp;
+			pixel_x_reg <= 10'd0;
+                        h_count <= 10'd0;
+                        h_state <= Hfp;
                     end else begin
-                        h_count <= h_count + 1;
+
                     end
                 end
 
                 Hfp: begin
                     if (h_count == H_FP - 1) begin
-                        h_count <= 0;
-                        CS <= Hs;
+                        h_count <= 10'd0;
+                        h_state <= Hs;
                     end else begin
-                        h_count <= h_count + 1;
+                        h_count <= h_count + 10'd1;
                     end
                 end
 
                 Hs: begin
                     if (h_count == H_S - 1) begin
-                        h_count <= 0;
-                        if (v_line == V_A - 1) begin
-                            v_line <= 0;
-                            CS <= Vfp;
-                        end else begin
-                            v_line <= v_line + 1;
-                            CS <= Hbp;
-                        end
+                        h_count <= 10'd0;
+                        h_state <= Hbp;
                     end else begin
-                        h_count <= h_count + 1;
+                        h_count <= h_count + 10'd1;
                     end
                 end
 
-                Vfp: begin
-                    if (v_count == V_FP - 1) begin
-                        v_count <= 0;
-                        CS <= Vs;
-                    end else begin
-                        v_count <= v_count + 1;
-                    end
-                end
-
-                Vs: begin
-                    if (v_count == V_S - 1) begin
-                        v_count <= 0;
-                        CS <= Vbp;
-                    end else begin
-                        v_count <= v_count + 1;
-                    end
-                end
-
-                default: CS <= Idle;
+                default: h_state <= Hbp;
             endcase
         end
     end
 
+    // End of line detection (when Hs completes)
+    assign end_of_line = (h_state == Hs) && (h_count == H_S - 1);
+
+    // Vertical FSM
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            v_state <= Vbp;
+            v_count <= 10'd0;
+            pixel_y_reg <= 9'd0;
+        end else begin
+            if (end_of_line) begin  // Only advance vertical state at end of each line
+                case (v_state)
+                    Vbp: begin
+                        if (v_count == V_BP - 1) begin
+                            v_count <= 10'd0;
+                            pixel_y_reg <= 9'd0;
+                            v_state <= Va;
+                        end else begin
+                            v_count <= v_count + 10'd1;
+                        end
+                    end
+
+                    Va: begin
+                        v_count <= v_count + 10'd1;
+                        pixel_y_reg <= pixel_y_reg + 9'd1;
+                        if (v_count == V_A - 1) begin
+                            v_count <= 10'd0;
+                            v_state <= Vfp;
+			    pixel_y_reg <= 9'd0;
+                        end else begin
+                            
+                        end
+                    end
+
+                    Vfp: begin
+                        if (v_count == V_FP - 1) begin
+                            v_count <= 10'd0;
+                            v_state <= Vs;
+                        end else begin
+                            v_count <= v_count + 10'd1;
+                        end
+                    end
+
+                    Vs: begin
+                        if (v_count == V_S - 1) begin
+                            v_count <= 10'd0;
+                            v_state <= Vbp;
+                        end else begin
+                            v_count <= v_count + 10'd1;
+                        end
+                    end
+
+                    default: v_state <= Vbp;
+                endcase
+            end
+        end
+    end
+
     // Output assignments
-    assign hsync        = (CS == Hs) ? 1'b0 : 1'b1;   // active low
-    assign vsync        = (CS == Vs) ? 1'b0 : 1'b1;   // active low
-    assign active_video = (CS == Ha);                // high during visible region
-    assign pixel_x      = (CS == Ha) ? h_count : 11'd0;
-    assign pixel_y      = (CS == Ha) ? v_line  : 10'd0;
+    assign hsync = (h_state == Hs) ? 1'b0 : 1'b1;  // Active low
+    assign vsync = (v_state == Vs) ? 1'b0 : 1'b1;  // Active low
+    assign active_video = (h_state == Ha) && (v_state == Va);
+    assign pixel_x = (active_video) ? pixel_x_reg : 10'd0;
+    assign pixel_y = (active_video) ? pixel_y_reg : 9'd0;
 
 endmodule
+
 
